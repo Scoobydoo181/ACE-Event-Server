@@ -1,0 +1,23 @@
+{
+  "name": "ace-event-server",
+  "version": "1.0.0",
+  "description": "A server for the University of Florida Association of Computer Engineers to aid in event management",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Scoobydoo181/ACE-Event-Server.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Scoobydoo181/ACE-Event-Server/issues"
+  },
+  "homepage": "https://github.com/Scoobydoo181/ACE-Event-Server#readme",
+  "dependencies": {
+    "express": "^4.17.1"
+  }
+}
