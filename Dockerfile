@@ -6,6 +6,6 @@ ADD . /home/ace-event-server
 
 WORKDIR /home/ACE-Event-Server
 
-RUN npm install
+RUN npm install --production
 
 CMD npm run start
