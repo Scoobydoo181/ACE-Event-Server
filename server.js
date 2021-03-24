@@ -6,19 +6,93 @@ const app = express()
 app.use(express.json())
 app.use(express.urlencoded({extended: true}))
 
+const request = require('request')
+require('dotenv').config()
+
+const global = {
+	zoomToken: undefined,
+	slackCallbackURL: undefined
+}
+
+function sendSlackMessage(text) {
+	```Send the passed text as a slack message```
+	return axios.post(global.slackCallbackURL, {"text": text, "response_type": "ephemeral"})
+}
+
 function getZoomLink(name, description, date, time) {
-    return 'https://ufl.zoom.us/j/92822744265'
+	```Sends Zoom auth URL into the Slack. Once authed, create the zoom meeting with the given details, returning a promise with the meeting url```
+	const uri = 'https://zoom.us/oauth/authorize?response_type=code&client_id='
+	const {clientID, redirectURL} = process.env
+	const zoomAuthURI = uri + clientID + '&redirect_uri=' + redirectURL
+
+	//Give user Zoom auth URL through slack message to sign in 
+	const oldToken = global.zoomToken
+	return sendSlackMessage(`Authorize Zoom at: ${zoomAuthURI}`).then(_ => {
+		
+		function delay(t) {
+   			return new Promise(resolve => setTimeout(resolve, t) )
+		}
+
+		function waitForToken() {
+			if(global.zoomToken === oldToken) {
+				//Wait 50ms then check again
+				return delay(50).then(waitForToken)
+			}
+
+			//Create meeting and return link when authorized 
+			return axios.post('https://api.zoom.us/v2/users/me/meetings', {
+				"topic": name,
+				"type": 2,
+				"start_time": `${date}T${time}:00`, 
+				"duration": 120,
+				"timezone": "America/New_York",
+				"agenda": description,
+				"settings": {
+					"host_video": true,
+					"participant_video": true,
+					"join_before_host": true, //? Ask Ace
+					"mute_upon_entry": true, 
+					"use_pmi": false, 
+					"auto_recording": "local", //? Ask Ace
+					"enforce_login": false, //? Ask Ace
+				}
+			}, {headers: {'content-type': 'application/json', authorization: `Bearer ${global.zoomToken}`}}
+			).then(res => res.data.join_url)
+		}
+
+		return waitForToken()
+	})
 }
 
 function insertEvent(name, description, date, time) {
-
+	
 }
 
-let callbackURL
+app.get('/zoomAuth', (req, res) => {
+	if (!req.query.code) 
+		res.status(401).send("Not authorized. Response must contain query parameter code")
+	
+	// Request an access token using the auth code
+	let url = 'https://zoom.us/oauth/token?grant_type=authorization_code&code=' + req.query.code + '&redirect_uri=' + process.env.redirectURL;
+	const authToken = 'Basic a2lxdEZhOGdURnE0UUtMSzFub3VPZzp6dmtZSVpXNEJMVmEzUWt5MUQwZUg3VTN0UnBpT2d3WQ=='
+	
+	request.post(url, {headers: {'Authorization': authToken}}, (error, response, body) => {	
+		body = JSON.parse(body)
+
+		if (!body.access_token) 
+			throw new Error("No access Token. User needs to authorize")
+
+		global.zoomToken = body.access_token
+	}).auth(process.env.clientID, process.env.clientSecret);
+})
+
 app.post('/slack', (req, res) => {
+	```First point of contact with the slash command from the ACE slack channel. Opens the popup form with a POST request to the Slack API```
 	//Add code to verify password
     res.status(200).send("")
 	
+	global.slackCallbackURL = req.body.response_url
+
     axios.post('https://slack.com/api/views.open', {
 		"trigger_id": req.body.trigger_id,
         "view": {
@@ -26,19 +100,17 @@ app.post('/slack', (req, res) => {
             "callback_id": "modal-identifier",
             ...popupForm
         }
-    }, {headers: {"Authorization": "Bearer xoxb-27149191857-1810892120278-aWAUZ5BRbA9UE1Y08kSLfDxw"}}
-    ).then((result) => {
-		// Send a slack message later:
-		callbackURL = req.body.response_url
-    })
+    }, {headers: {"Authorization": "Bearer xoxb-27149191857-1810892120278-aWAUZ5BRbA9UE1Y08kSLfDxw"}})
+
 })
 
-app.post('/slackCallback', (req, res) => {
+app.post('/slackCallback', async (req, res) => {
+	```Second point of contact with Slack. This endpoint recieves callbacks from Slack with event creation details after the popup form has been submitted.```
 	const payload = JSON.parse(req.body.payload)
 	if(payload.type !== "view_submission")
 		return;
 
-	
+	//Extract event details from payload
 	const A = Object.values(payload.view.state.values).reduce((a, b) => {return {...a, ...b}})
 	const data = {
 		title: A['title'].value,
@@ -47,14 +119,9 @@ app.post('/slackCallback', (req, res) => {
 		time: A['timepicker-action'].selected_time,
 	}
 
-	const zoomLink = getZoomLink(data)
+	const zoomLink = await getZoomLink(data.title, data.description, data.date, data.time)
 
-	axios.post(callbackURL, {"text": `Your meeting is scheduled for ${data.date} at ${data.time}. 
-Your zoom link is: ${zoomLink}`, "response_type": "ephemeral"})
-	
-	// setTimeout(() => {
-	// 	axios.post(callbackURL, {"text": `10 seconds later`, "response_type": "ephemeral"})
-	// }, 10000)
+	sendSlackMessage("Your meeting is scheduled for " + data.date + " at " + data.time + ".\nYour zoom link is: " + zoomLink)
 
 	res.send( {"response_action": "clear"} )
 })
