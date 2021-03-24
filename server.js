@@ -7,7 +7,7 @@ app.use(express.json())
 app.use(express.urlencoded({extended: true}))
 
 function getZoomLink(name, description, date, time) {
-    return 'www.zoom.us.com/'
+    return 'https://ufl.zoom.us/j/92822744265'
 }
 
 function insertEvent(name, description, date, time) {
@@ -17,7 +17,6 @@ function insertEvent(name, description, date, time) {
 let callbackURL
 app.post('/slack', (req, res) => {
 	//Add code to verify password
-
     res.status(200).send("")
 	
     axios.post('https://slack.com/api/views.open', {
@@ -36,6 +35,8 @@ app.post('/slack', (req, res) => {
 
 app.post('/slackCallback', (req, res) => {
 	const payload = JSON.parse(req.body.payload)
+	if(payload.type !== "view_submission")
+		return;
 
 	
 	const A = Object.values(payload.view.state.values).reduce((a, b) => {return {...a, ...b}})
@@ -45,13 +46,15 @@ app.post('/slackCallback', (req, res) => {
 		date: A['datepicker-action'].selected_date,
 		time: A['timepicker-action'].selected_time,
 	}
-	const zoomLink = getZoomLink()
-	axios.post(callbackURL, {"text": `Your zoom link is: ${zoomLink}
-	Data: ${JSON.stringify(data)}`, "response_type": "ephemeral"})
+
+	const zoomLink = getZoomLink(data)
+
+	axios.post(callbackURL, {"text": `Your meeting is scheduled for ${data.date} at ${data.time}. 
+Your zoom link is: ${zoomLink}`, "response_type": "ephemeral"})
 	
-	setTimeout(() => {
-		axios.post(callbackURL, {"text": `10 seconds later`, "response_type": "ephemeral"})
-	}, 10000)
+	// setTimeout(() => {
+	// 	axios.post(callbackURL, {"text": `10 seconds later`, "response_type": "ephemeral"})
+	// }, 10000)
 
 	res.send( {"response_action": "clear"} )
 })
