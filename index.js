@@ -11,72 +11,88 @@ app.use(express.json());
 
 // ROUTES
 
-// create a todo
+// create a event
 
-app.post("/todos", async(req, res) => {
+app.post("/events", async(req, res) => {
+
     // await is obtianed from async
     try{
+        
         const { description } = req.body;
-        const newTodo = await pool.query("INSERT INTO todo (description) VALUES($1) RETURNING *", 
-        [description]);
-        //console.log(req.body);
-        res.json(newTodo.rows[0]);
+        const { event_title } = req.body;
+        const { zoom_link } = req.body;
+        const { time } = req.body;
+        const newEvent = await pool.query("INSERT INTO events (description, event_title, zoom_link, time) VALUES($1, $2, $3, $4) RETURNING *", 
+        [description, event_title, zoom_link, time]);
+        
+        console.log(req.body);
+        res.json(newEvent.rows[0]);
+      
     }catch(err){
         console.error(err.message);
     }
 })
 
-// get all todos
+// get all events
 
-app.get("/todos", async(req, res) => {
+app.get("/events", async(req, res) => {
     try{
-        const allTodos = await pool.query("SELECT * FROM todo");
-        res.json(allTodos.rows);
+        const allEvents = await pool.query("SELECT * FROM events");
+        res.json(allEvents.rows);
     }catch(err){
         console.log(err.message);
     }
 })
 
 
-// get a todo
+// get a event
 
-app.get("/todos/:id", async (req, res) => {
+app.get("/events/:id", async (req, res) => {
     try {
         const { id } = req.params;
         
-        const todos = await pool.query("SELECT * FROM todo WHERE todo_id = $1", [id]);
+        const event = await pool.query("SELECT * FROM events WHERE event_id = $1", [id]);
 
 
-        res.json(todos.rows[0]);
+        res.json(event.rows[0]);
     } catch (error) {
         console.log(err.message);
     }
 })
 
-// update a todo
+// update an event
 
-app.put("/todos/:id", async (req, res) => {
+app.put("/event/:id", async (req, res) => {
     try {
         const { id } = req.params;
         const {description} = req.body;
-        const updateTodo = await pool.query("UPDATE todo SET description = $1 WHERE todo_id = $2", 
+        const { event_title } = req.body;
+        const { zoom_link } = req.body;
+        const { time } = req.body;
+        const updateevent = await pool.query("UPDATE events SET description = $1 WHERE event_id = $2", 
         [description, id]);
+        const updateEvent1 = await pool.query("UPDATE events SET event_title = $1 WHERE event_id = $2", 
+        [event_title, id]);
+        const updateEvent2 = await pool.query("UPDATE events SET zoom_link = $1 WHERE event_id = $2", 
+        [zoom_link, id]);
+        const updateEvent3 = await pool.query("UPDATE events SET time = $1 WHERE event_id = $2", 
+        [time, id]);
 
-        res.json("Todo was updated!")
+        res.json("Event was updated!")
     } catch (error) {
         console.error(err.message);
     }
 })
 
 
-// delete a todo
+// delete an event
 
-app.delete("/todos/:id", async (req, res) => {
+app.delete("/events/:id", async (req, res) => {
     try {
         const { id } = req.params;
-        const deleteTodo = await pool.query("DELETE FROM todo WHERE todo_id = $1",
+        const deleteEvent = await pool.query("DELETE FROM events WHERE event_id = $1",
         [id]);
-        res.json("Todo was deleted!");
+        res.json("Event was deleted!");
     } catch (error) {
         console.log(error.message)
     }
