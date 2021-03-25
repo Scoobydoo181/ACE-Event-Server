@@ -1,87 +1,77 @@
-const express = require("express");
-const app = express();
-const cors = require("cors");
+const {google} = require("googleapis");
 
-const pool = require("./db");
+const {OAuth2} = google.auth;
+
+const oAuth2Client = new OAuth2('1059936587475-6doausdvsn5lorn65i1shfedu347l3v1.apps.googleusercontent.com', '1HmIjdvCDmDxkVJMIQzfEMZu');
 
 
-// middleware
-app.use(cors());
-app.use(express.json());
+oAuth2Client.setCredentials({refresh_token: '1//04bT-0hejy1V5CgYIARAAGAQSNwF-L9IrLNDCbcVQ-DkySFbi1zjO-x1wv-lhoZ6V4jo-VhVSK80NNpSjB3sD3o8OdiV32zEzMRc'});
 
-// ROUTES
+const calendar = google.calendar({version: 'v3', auth: oAuth2Client});
 
-// create a todo
 
-app.post("/todos", async(req, res) => {
-    // await is obtianed from async
-    try{
-        const { description } = req.body;
-        const newTodo = await pool.query("INSERT INTO todo (description) VALUES($1) RETURNING *", 
-        [description]);
-        //console.log(req.body);
-        res.json(newTodo.rows[0]);
-    }catch(err){
-        console.error(err.message);
+  
+  // Create a new event start date instance for temp uses in our calendar.
+  const eventStartTime = new Date()
+  // Gonna be two days
+  //console.log(eventStartTime);
+  eventStartTime.setDate(eventStartTime.getDay() + 14)
+  
+  // Create a new event end date instance for temp uses in our calendar.
+  const eventEndTime = new Date()
+  eventEndTime.setDate(eventEndTime.getDay() + 14)
+  // Event will be 45 min long
+  eventEndTime.setMinutes(eventEndTime.getMinutes() + 45)
+  
+  // Create a dummy event for temp uses in our calendar
+  const event = {
+    summary: `ACE GBM 1`,
+    // Location of GBM
+    location: `Marston Science Library`,
+    description: `Will be going over everything ACE`,
+    // Orange ID
+    colorId: 6,
+    start: {
+      dateTime: eventStartTime,
+      timeZone: 'America/New_York',
+    },
+    end: {
+      dateTime: eventEndTime,
+      timeZone: 'America/New_York',
+    },
+  }
+  
+  // Check if we a busy and have an event on our calendar for the same time.
+  calendar.freebusy.query(
+    {
+      resource: {
+        timeMin: eventStartTime,
+        timeMax: eventEndTime,
+        timeZone: 'America/New_York',
+        items: [{ id: 'primary' }],
+      },
+    },
+    (err, res) => {
+      // Check for errors in our query and log them if they exist.
+      if (err) return console.error('Free Busy Query Error: ', err)
+  
+      // Create an array of all events on our calendar during that time.
+      const eventArr = res.data.calendars.primary.busy
+  
+      // Check if event array is empty which means we are not busy
+      if (eventArr.length === 0)
+        // If we are not busy create a new calendar event.
+        return calendar.events.insert(
+          { calendarId: 'primary', resource: event },
+          err => {
+            // Check for errors and log them if they exist.
+            if (err) return console.error('Error Creating Calender Event:', err)
+            // Else log that the event was created.
+            return console.log('Calendar event successfully created.')
+          }
+        )
+  
+      // If event array is not empty log that we are busy.
+      return console.log(`You are busy that time`)
     }
-})
-
-// get all todos
-
-app.get("/todos", async(req, res) => {
-    try{
-        const allTodos = await pool.query("SELECT * FROM todo");
-        res.json(allTodos.rows);
-    }catch(err){
-        console.log(err.message);
-    }
-})
-
-
-// get a todo
-
-app.get("/todos/:id", async (req, res) => {
-    try {
-        const { id } = req.params;
-        
-        const todos = await pool.query("SELECT * FROM todo WHERE todo_id = $1", [id]);
-
-
-        res.json(todos.rows[0]);
-    } catch (error) {
-        console.log(err.message);
-    }
-})
-
-// update a todo
-
-app.put("/todos/:id", async (req, res) => {
-    try {
-        const { id } = req.params;
-        const {description} = req.body;
-        const updateTodo = await pool.query("UPDATE todo SET description = $1 WHERE todo_id = $2", 
-        [description, id]);
-
-        res.json("Todo was updated!")
-    } catch (error) {
-        console.error(err.message);
-    }
-})
-
-
-// delete a todo
-
-app.delete("/todos/:id", async (req, res) => {
-    try {
-        const { id } = req.params;
-        const deleteTodo = await pool.query("DELETE FROM todo WHERE todo_id = $1",
-        [id]);
-        res.json("Todo was deleted!");
-    } catch (error) {
-        console.log(error.message)
-    }
-})
-
-app.listen(5000, () => {
-    console.log("server has started on port 5000");
-});
+  )
