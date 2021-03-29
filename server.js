@@ -1,13 +1,13 @@
 import express from 'express'
 import axios from 'axios'
+import request from 'request'
+import dotenv from 'dotenv'
+dotenv.config()
 
 const app = express()
 
 app.use(express.json())
 app.use(express.urlencoded({extended: true}))
-
-const request = require('request')
-require('dotenv').config()
 
 const global = {
 	zoomToken: undefined,
@@ -15,12 +15,12 @@ const global = {
 }
 
 function sendSlackMessage(text) {
-	```Send the passed text as a slack message```
+	//Send the passed text as a slack message
 	return axios.post(global.slackCallbackURL, {"text": text, "response_type": "ephemeral"})
 }
 
 function getZoomLink(name, description, date, time) {
-	```Sends Zoom auth URL into the Slack. Once authed, create the zoom meeting with the given details, returning a promise with the meeting url```
+	//Sends Zoom auth URL into the Slack. Once authed, create the zoom meeting with the given details, returning a promise with the meeting url
 	const uri = 'https://zoom.us/oauth/authorize?response_type=code&client_id='
 	const {clientID, redirectURL} = process.env
 	const zoomAuthURI = uri + clientID + '&redirect_uri=' + redirectURL
@@ -83,13 +83,14 @@ app.get('/zoomAuth', (req, res) => {
 			throw new Error("No access Token. User needs to authorize")
 
 		global.zoomToken = body.access_token
-	}).auth(process.env.clientID, process.env.clientSecret);
+	}).auth(process.env.clientID, process.env.clientSecret)
+	res.send("<h1>Access granted!</h1><h2>It's okay to close this page now</h2>")
 })
 
 app.post('/slack', (req, res) => {
-	```First point of contact with the slash command from the ACE slack channel. Opens the popup form with a POST request to the Slack API```
+	//First point of contact with the slash command from the ACE slack channel. Opens the popup form with a POST request to the Slack API
 	//Add code to verify password
-    res.status(200).send("")
+    res.status(200).send("");
 	
 	global.slackCallbackURL = req.body.response_url
 
@@ -105,7 +106,7 @@ app.post('/slack', (req, res) => {
 })
 
 app.post('/slackCallback', async (req, res) => {
-	```Second point of contact with Slack. This endpoint recieves callbacks from Slack with event creation details after the popup form has been submitted.```
+	//Second point of contact with Slack. This endpoint recieves callbacks from Slack with event creation details after the popup form has been submitted.
 	const payload = JSON.parse(req.body.payload)
 	if(payload.type !== "view_submission")
 		return;
@@ -118,12 +119,12 @@ app.post('/slackCallback', async (req, res) => {
 		date: A['datepicker-action'].selected_date,
 		time: A['timepicker-action'].selected_time,
 	}
-
+	res.send( {"response_action": "clear"} )
+	
 	const zoomLink = await getZoomLink(data.title, data.description, data.date, data.time)
 
 	sendSlackMessage("Your meeting is scheduled for " + data.date + " at " + data.time + ".\nYour zoom link is: " + zoomLink)
-
-	res.send( {"response_action": "clear"} )
+	
 })
 
 app.get('/test', (req, res) => {
