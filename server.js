@@ -1,8 +1,8 @@
 import express from 'express'
 import axios from 'axios'
 import request from 'request'
-import dotenv from 'dotenv'
-dotenv.config()
+// import dotenv from 'dotenv'
+// dotenv.config()
 
 const app = express()
 
@@ -74,7 +74,7 @@ app.get('/zoomAuth', (req, res) => {
 	
 	// Request an access token using the auth code
 	let url = 'https://zoom.us/oauth/token?grant_type=authorization_code&code=' + req.query.code + '&redirect_uri=' + process.env.redirectURL;
-	const authToken = 'Basic a2lxdEZhOGdURnE0UUtMSzFub3VPZzp6dmtZSVpXNEJMVmEzUWt5MUQwZUg3VTN0UnBpT2d3WQ=='
+	const authToken = `Basic ${process.env.zoomAuthToken}`
 	
 	request.post(url, {headers: {'Authorization': authToken}}, (error, response, body) => {	
 		body = JSON.parse(body)
@@ -84,7 +84,7 @@ app.get('/zoomAuth', (req, res) => {
 
 		global.zoomToken = body.access_token
 	}).auth(process.env.clientID, process.env.clientSecret)
-	res.send("<h1>Access granted!</h1><h2>It's okay to close this page now</h2>")
+	res.send("<h1 style=\"text-align: center;\"}>Access granted!</h1><h2 style=\"text-align: center;\">It's okay to close this page now</h2>")
 })
 
 app.post('/slack', (req, res) => {
@@ -101,7 +101,7 @@ app.post('/slack', (req, res) => {
             "callback_id": "modal-identifier",
             ...popupForm
         }
-    }, {headers: {"Authorization": "Bearer xoxb-27149191857-1810892120278-aWAUZ5BRbA9UE1Y08kSLfDxw"}})
+    }, {headers: {"Authorization": `Bearer ${process.env.slackAuthToken}`}})
 
 })
 
