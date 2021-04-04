@@ -68,6 +68,48 @@ function insertEvent(name, description, date, time) {
 	
 }
 
+
+app.post('/slack', (req, res) => {
+	//First point of contact with the slash command from the ACE slack channel. Opens the popup form with a POST request to the Slack API
+	//Add code to verify password
+    res.status(200).send("");
+	
+	global.slackCallbackURL = req.body.response_url
+
+    axios.post('https://slack.com/api/views.open', {
+		"trigger_id": req.body.trigger_id,
+        "view": {
+			"type": "modal",
+            "callback_id": "modal-identifier",
+            ...popupForm
+        }
+    }, {headers: {"Authorization": `Bearer ${process.env.slackAuthToken}`}})
+	
+})
+
+app.post('/slackCallback', async (req, res) => {
+	//Second point of contact with Slack. This endpoint recieves callbacks from Slack with event creation details after the popup form has been submitted.
+	const payload = JSON.parse(req.body.payload)
+	if(payload.type !== "view_submission")
+	return;
+
+	//Extract event details from payload
+	const A = Object.values(payload.view.state.values).reduce((a, b) => {return {...a, ...b}})
+	const data = {
+		title: A['title'].value,
+		description: A['plain_text_input-action'].value,
+		date: A['datepicker-action'].selected_date,
+		time: A['timepicker-action'].selected_time,
+	}
+	res.send( {"response_action": "clear"} )
+	
+	const zoomLink = await getZoomLink(data.title, data.description, data.date, data.time)
+	await createGoogleCalendarEvent(data.title, data.description, data.date, data.time)
+
+	sendSlackMessage("Your meeting is scheduled for " + data.date + " at " + data.time + ".\nYour zoom link is: " + zoomLink)
+	
+})
+
 app.get('/zoomAuth', (req, res) => {
 	if (!req.query.code) 
 		res.status(401).send("Not authorized. Response must contain query parameter code")
@@ -87,48 +129,8 @@ app.get('/zoomAuth', (req, res) => {
 	res.send("<h1 style=\"text-align: center;\"}>Access granted!</h1><h2 style=\"text-align: center;\">It's okay to close this page now</h2>")
 })
 
-app.post('/slack', (req, res) => {
-	//First point of contact with the slash command from the ACE slack channel. Opens the popup form with a POST request to the Slack API
-	//Add code to verify password
-    res.status(200).send("");
-	
-	global.slackCallbackURL = req.body.response_url
-
-    axios.post('https://slack.com/api/views.open', {
-		"trigger_id": req.body.trigger_id,
-        "view": {
-			"type": "modal",
-            "callback_id": "modal-identifier",
-            ...popupForm
-        }
-    }, {headers: {"Authorization": `Bearer ${process.env.slackAuthToken}`}})
-
-})
-
-app.post('/slackCallback', async (req, res) => {
-	//Second point of contact with Slack. This endpoint recieves callbacks from Slack with event creation details after the popup form has been submitted.
-	const payload = JSON.parse(req.body.payload)
-	if(payload.type !== "view_submission")
-		return;
-
-	//Extract event details from payload
-	const A = Object.values(payload.view.state.values).reduce((a, b) => {return {...a, ...b}})
-	const data = {
-		title: A['title'].value,
-		description: A['plain_text_input-action'].value,
-		date: A['datepicker-action'].selected_date,
-		time: A['timepicker-action'].selected_time,
-	}
-	res.send( {"response_action": "clear"} )
-	
-	const zoomLink = await getZoomLink(data.title, data.description, data.date, data.time)
-
-	sendSlackMessage("Your meeting is scheduled for " + data.date + " at " + data.time + ".\nYour zoom link is: " + zoomLink)
-	
-})
-
 app.get('/test', (req, res) => {
-    res.sendStatus(200)
+	res.sendStatus(200)
 })
 
 const PORT = process.env.PORT || 3000
