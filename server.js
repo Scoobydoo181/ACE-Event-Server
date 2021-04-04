@@ -1,8 +1,10 @@
 import express from 'express'
 import axios from 'axios'
 import request from 'request'
-// import dotenv from 'dotenv'
-// dotenv.config()
+import { google } from 'googleapis'
+
+import dotenv from 'dotenv'
+dotenv.config()
 
 const app = express()
 
@@ -28,7 +30,6 @@ function getZoomLink(name, description, date, time) {
 	//Give user Zoom auth URL through slack message to sign in 
 	const oldToken = global.zoomToken
 	return sendSlackMessage(`Authorize Zoom at: ${zoomAuthURI}`).then(_ => {
-		
 		function delay(t) {
    			return new Promise(resolve => setTimeout(resolve, t) )
 		}
@@ -64,8 +65,31 @@ function getZoomLink(name, description, date, time) {
 	})
 }
 
-function insertEvent(name, description, date, time) {
-	
+function createGoogleCalendarEvent(name, description, date, time) {
+	const {OAuth2} = google.auth
+	const oAuth2Client = new OAuth2(process.env.googleID, process.env.googleSecret)
+	oAuth2Client.setCredentials({ refresh_token: process.env.googleRefreshToken })
+
+	const calendar = google.calendar({ version: 'v3', auth: oAuth2Client })
+
+	const event = {
+		summary: name,
+		location: `University of Florida`,
+		description: description,
+		// Orange ID
+		colorId: 6,
+		start: {
+			dateTime: new Date(date + 'T' + time),
+			timeZone: 'America/New_York',
+		},
+		end: {
+			//Add 2 hours
+			dateTime: new Date(date + 'T' + (parseInt(time.substring(0, 2)) + 2) + time.substring(2)),
+			timeZone: 'America/New_York',
+		}
+	}
+
+	return calendar.events.insert({ calendarId: 'primary', resource: event })
 }
 
 app.post('/slack', (req, res) => {
@@ -105,8 +129,7 @@ app.post('/slackCallback', async (req, res) => {
 	const zoomLink = await getZoomLink(data.title, data.description, data.date, data.time)
 	await createGoogleCalendarEvent(data.title, data.description, data.date, data.time)
 
-	sendSlackMessage("Your meeting is scheduled for " + data.date + " at " + data.time + ".\nYour zoom link is: " + zoomLink)
-	
+	await sendSlackMessage("Your meeting is scheduled for " + data.date + " at " + data.time + ".\nYour zoom link is: " + zoomLink)
 })
 
 app.get('/zoomAuth', (req, res) => {

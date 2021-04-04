@@ -1,11 +1,9 @@
-const {google} = require("googleapis");
+import {google} from "googleapis"
 
 const {OAuth2} = google.auth;
 
 const oAuth2Client = new OAuth2('1059936587475-6doausdvsn5lorn65i1shfedu347l3v1.apps.googleusercontent.com', '1HmIjdvCDmDxkVJMIQzfEMZu');
-
-
-oAuth2Client.setCredentials({refresh_token: '1//04bT-0hejy1V5CgYIARAAGAQSNwF-L9IrLNDCbcVQ-DkySFbi1zjO-x1wv-lhoZ6V4jo-VhVSK80NNpSjB3sD3o8OdiV32zEzMRc'});
+oAuth2Client.setCredentials({ refresh_token: ' 1//04D8Z1uFwpcYgCgYIARAAGAQSNwF-L9IrajCHXI-srv8S8titmHVfTUV0TR0RIMgJzZWwA3ceq_0ZhSI3fAHVCflgY8Cj3g0weGs'});
 
 const calendar = google.calendar({version: 'v3', auth: oAuth2Client});
 
