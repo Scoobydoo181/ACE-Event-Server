@@ -68,7 +68,6 @@ function insertEvent(name, description, date, time) {
 	
 }
 
-
 app.post('/slack', (req, res) => {
 	//First point of contact with the slash command from the ACE slack channel. Opens the popup form with a POST request to the Slack API
 	//Add code to verify password
@@ -126,7 +125,7 @@ app.get('/zoomAuth', (req, res) => {
 
 		global.zoomToken = body.access_token
 	}).auth(process.env.clientID, process.env.clientSecret)
-	res.send("<h1 style=\"text-align: center;\"}>Access granted!</h1><h2 style=\"text-align: center;\">It's okay to close this page now</h2>")
+	res.sendFile('./success.html')
 })
 
 app.get('/test', (req, res) => {
