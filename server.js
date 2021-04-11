@@ -16,9 +16,13 @@ const global = {
 	slackCallbackURL: undefined
 }
 
-function sendSlackMessage(text) {
+function sendSlackMessage(text, scheduled=false) {
 	//Send the passed text as a slack message
-	return axios.post(global.slackCallbackURL, {"text": text, "response_type": "ephemeral"})
+	if(scheduled) {
+		date = new Date(scheduled).getTime()
+		return axios.post('https://slack.com/api/chat.scheduleMessage', { channel: "C0T3YRW4U", "text": text, post_at: date - 3600000 })
+	} else
+		return axios.post(global.slackCallbackURL, {"text": text, "response_type": "ephemeral"})
 }
 
 function getZoomLink(name, description, date, time) {
@@ -65,7 +69,7 @@ function getZoomLink(name, description, date, time) {
 	})
 }
 
-function createGoogleCalendarEvent(name, description, date, time) {
+function createGoogleCalendarEvent(name, description, date, time, zoomLink) {
 	const {OAuth2} = google.auth
 	const oAuth2Client = new OAuth2(process.env.googleID, process.env.googleSecret)
 	oAuth2Client.setCredentials({ refresh_token: process.env.googleRefreshToken })
@@ -74,7 +78,7 @@ function createGoogleCalendarEvent(name, description, date, time) {
 
 	const event = {
 		summary: name,
-		location: `University of Florida`,
+		location: zoomLink,
 		description: description,
 		// Orange ID
 		colorId: 6,
@@ -89,7 +93,7 @@ function createGoogleCalendarEvent(name, description, date, time) {
 		}
 	}
 
-	return calendar.events.insert({ calendarId: 'primary', resource: event })
+	return calendar.events.insert({ calendarId: 'nulds1jmr72jqc6c0h76f0vfis@group.calendar.google.com', resource: event })
 }
 
 app.post('/slack', (req, res) => {
@@ -127,9 +131,11 @@ app.post('/slackCallback', async (req, res) => {
 	res.send( {"response_action": "clear"} )
 	
 	const zoomLink = await getZoomLink(data.title, data.description, data.date, data.time)
-	await createGoogleCalendarEvent(data.title, data.description, data.date, data.time)
+	await createGoogleCalendarEvent(data.title, data.description, data.date, data.time, zoomLink)
 
 	await sendSlackMessage("Your meeting is scheduled for " + data.date + " at " + data.time + ".\nYour zoom link is: " + zoomLink)
+
+	await sendSlackMessage("This is a test of the ACE Events Slackbot. \nPlease disregard this message", scheduled=data.date + "T" + data.time)
 })
 
 app.get('/zoomAuth', (req, res) => {
