@@ -142,19 +142,16 @@ app.get('/zoomAuth', (req, res) => {
 	// Request an access token using the auth code
 	let url = 'https://zoom.us/oauth/token?grant_type=authorization_code&code=' + req.query.code + '&redirect_uri=' + process.env.redirectURL;
 	const authToken = `Basic ${process.env.zoomAuthToken}`
-	try {
-		request.post(url, {headers: {'Authorization': authToken}}, (error, response, body) => {	
-			body = JSON.parse(body)
 
-			if (!body.access_token) 
-				throw new Error("No access Token. User needs to authorize")
+	request.post(url, {headers: {'Authorization': authToken}}, (error, response, body) => {	
+		body = JSON.parse(body)
 
-			global.zoomToken = body.access_token
-		}).auth(process.env.clientID, process.env.clientSecret)
-		res.sendFile('./success.html')
-	} catch (e) {
-		res.status(401).send("Error: Not authorized")
-	}
+		if (!body.access_token) 
+			throw new Error("No access Token. User needs to authorize")
+
+		global.zoomToken = body.access_token
+	}).auth(process.env.clientID, process.env.clientSecret)
+	res.sendFile('./success.html')
 })
 
 app.get('/test', (req, res) => {
