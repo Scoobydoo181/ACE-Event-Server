@@ -17,7 +17,7 @@ function sendSlackMessage(text, scheduled=false) {
 	//Send the passed text as a slack message
 	if(scheduled) {
 		date = new Date(scheduled).getTime()
-		return axios.post('https://slack.com/api/chat.scheduleMessage', { channel: "C0T3YRW4U", "text": text, post_at: date - 3600000 })
+		return axios.post('https://slack.com/api/chat.scheduleMessage', { channel: process.env.announcementsSlackChannel, "text": text, post_at: date - 3600000 })
 	} else
 		return axios.post(global.slackCallbackURL, {"text": text, "response_type": "ephemeral"})
 }
@@ -90,7 +90,7 @@ function createGoogleCalendarEvent(name, description, date, time, zoomLink) {
 		}
 	}
 
-	return calendar.events.insert({ calendarId: 'nulds1jmr72jqc6c0h76f0vfis@group.calendar.google.com', resource: event })
+	return calendar.events.insert({ calendarId: process.env.calendarId, resource: event })
 }
 
 app.post('/slack', (req, res) => {
@@ -142,16 +142,19 @@ app.get('/zoomAuth', (req, res) => {
 	// Request an access token using the auth code
 	let url = 'https://zoom.us/oauth/token?grant_type=authorization_code&code=' + req.query.code + '&redirect_uri=' + process.env.redirectURL;
 	const authToken = `Basic ${process.env.zoomAuthToken}`
-	
-	request.post(url, {headers: {'Authorization': authToken}}, (error, response, body) => {	
-		body = JSON.parse(body)
+	try {
+		request.post(url, {headers: {'Authorization': authToken}}, (error, response, body) => {	
+			body = JSON.parse(body)
 
-		if (!body.access_token) 
-			throw new Error("No access Token. User needs to authorize")
+			if (!body.access_token) 
+				throw new Error("No access Token. User needs to authorize")
 
-		global.zoomToken = body.access_token
-	}).auth(process.env.clientID, process.env.clientSecret)
-	res.sendFile('./success.html')
+			global.zoomToken = body.access_token
+		}).auth(process.env.clientID, process.env.clientSecret)
+		res.sendFile('./success.html')
+	} catch (e) {
+		res.status(401).send("Error: Not authorized")
+	}
 })
 
 app.get('/test', (req, res) => {
