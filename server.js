@@ -2,6 +2,7 @@ import express from 'express'
 import axios from 'axios'
 import request from 'request'
 import { google } from 'googleapis'
+import path from 'path'
 
 const app = express()
 
@@ -151,7 +152,7 @@ app.get('/zoomAuth', (req, res) => {
 
 		global.zoomToken = body.access_token
 	}).auth(process.env.clientID, process.env.clientSecret)
-	res.sendFile('./success.html')
+	res.sendFile(path.resolve('success.html'))
 })
 
 app.get('/test', (req, res) => {
