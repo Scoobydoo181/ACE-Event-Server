@@ -17,8 +17,9 @@ const global = {
 function sendSlackMessage(text, scheduled=false) {
 	//Send the passed text as a slack message
 	if(scheduled) {
-		date = new Date(scheduled).getTime()
-		return axios.post('https://slack.com/api/chat.scheduleMessage', { channel: process.env.announcementsSlackChannel, "text": text, post_at: date - 3600000 })
+		const date = new Date(scheduled)
+		date.setHours(date.getHours() - 1);
+		return axios.post('https://slack.com/api/chat.scheduleMessage', { channel: process.env.announcementsSlackChannel, "text": text, post_at: date.getTime() })
 	} else
 		return axios.post(global.slackCallbackURL, {"text": text, "response_type": "ephemeral"})
 }
@@ -86,7 +87,7 @@ function createGoogleCalendarEvent(name, description, date, time, zoomLink) {
 		},
 		end: {
 			//Add 2 hours
-			dateTime: new Date(date + 'T' + (parseInt(time.substring(0, 2)) + 2) + time.substring(2)),
+			dateTime: new Date(date + 'T' + (parseInt(time.substring(0, 2)) + 1) + time.substring(2)),
 			timeZone: 'America/New_York',
 		}
 	}
@@ -129,11 +130,12 @@ app.post('/slackCallback', async (req, res) => {
 	res.send( {"response_action": "clear"} )
 	
 	const zoomLink = await getZoomLink(data.title, data.description, data.date, data.time)
+
 	await createGoogleCalendarEvent(data.title, data.description, data.date, data.time, zoomLink)
 
 	await sendSlackMessage("Your meeting is scheduled for " + data.date + " at " + data.time + ".\nYour zoom link is: " + zoomLink)
 
-	await sendSlackMessage("This is a test of the ACE Events Slackbot. \nPlease disregard this message", scheduled=data.date + "T" + data.time)
+	await sendSlackMessage("This is a test of the ACE Events Slackbot. \nPlease disregard this message", data.date + "T" + data.time)
 })
 
 app.get('/zoomAuth', (req, res) => {
